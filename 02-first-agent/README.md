@@ -100,7 +100,7 @@ The `@app.entrypoint` decorator marks this as the main function. It receives:
 **4. Create the Agent**
 ```python
 research_agent = Agent(
-    model="anthropic.claude-3-5-sonnet-20241022-v2:0",
+    model="au.anthropic.claude-haiku-4-5-20251001-v1:0 ",
     system_prompt="..."
 )
 ```

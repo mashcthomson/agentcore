@@ -56,7 +56,7 @@ def web_search(query: str, max_results: int = 5) -> list:
 search_agent = Agent(
     name="Search Specialist",
     description="A specialist agent that performs web searches and returns formatted results",
-    model="anthropic.claude-3-5-sonnet-20241022-v2:0",
+    model="au.anthropic.claude-haiku-4-5-20251001-v1:0",
     system_prompt="""You are a search specialist. Be EXTREMELY brief.
 
     1. Use web_search tool

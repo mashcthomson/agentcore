@@ -61,69 +61,11 @@ Create the directory structure and OpenAPI specification for the external API:
 
 ```bash
 # Create directory structure
+cd ~/agentcore-workshop
 mkdir -p agents_and_tools/tools
-
-# Create the OpenAPI specification
-cat > agents_and_tools/tools/pubmed-api.yaml << 'EOF'
 ```
 
-```yaml
-# agents_and_tools/tools/pubmed-api.yaml
-openapi: 3.0.0
-info:
-  title: PubMed Search API
-  version: 1.0.0
-  description: Search PubMed for research papers
-
-servers:
-  - url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils
-paths:
-  /esearch.fcgi:
-    get:
-      operationId: searchPubMed
-      summary: Search PubMed database
-      description: Search for articles in PubMed
-      parameters:
-        - name: db
-          in: query
-          required: true
-          schema:
-            type: string
-            default: pubmed
-        - name: term
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Search query
-        - name: retmax
-          in: query
-          schema:
-            type: integer
-            default: 10
-          description: Maximum number of results
-        - name: retmode
-          in: query
-          schema:
-            type: string
-            default: json
-      responses:
-        '200':
-          description: Search results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  esearchresult:
-                    type: object
-                    properties:
-                      idlist:
-                        type: array
-                        items:
-                          type: string
-EOF
-```
+copy agentcore-tutorial/04-research-tools/tools/pubmed-api.yaml inside the agents_and_tools directory
 
 **Directory structure:**
 ```
@@ -139,13 +81,6 @@ agents_and_tools/
 
 **📁 Run these commands from:** `~/agentcore-workshop/agents_and_tools` directory
 
-```
-Your project structure:
-~/agentcore-workshop/agents_and_tools/          ← Run commands from here
-├── gateway_info.json                           ← Created by Step 1
-└── tools/
-    └── pubmed-api.yaml
-```
 
 ```bash
 # Navigate to the tutorial directory

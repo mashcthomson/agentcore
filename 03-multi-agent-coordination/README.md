@@ -79,10 +79,7 @@ We use the **Agent-to-Agent (A2A) protocol** for inter-agent communication inste
 Before starting, install the required dependencies:
 
 ```bash
-# Install strands-agents with A2A support
-pip install 'strands-agents[a2a]'
-
-# Or if using uv (recommended)
+# using uv (recommended)
 uv add 'strands-agents[a2a]'
 ```
 
@@ -110,7 +107,7 @@ cp pyproject.toml multi-agent-research/agents/orchestrator/
 
 ### 1.2 Create Search Specialist
 
-Create copy `agent-experiments/multi-agent-research-workshop/tutorials/03-multi-agent-coordination/agents/search_specialist.py` to `~/agentcore-workshop/multi-agent-research/agents/search_specialist`
+Create copy `03-multi-agent-coordination/agents/search_specialist.py` to `~/agentcore-workshop/multi-agent-research/agents/search_specialist`
 
 
 ### 1.3 Configure and Test Search Specialist Locally
@@ -292,7 +289,8 @@ Getting the URL of your agent in the cloud is little complicated. For that I hav
 ```bash
 cd ~/agentcore-workshop
 # Run the following to invoke your agent through http call
-# Copy ~/multi-agent-research-workshop/tutorials/03-multi-agent-coordination/infrastructure/invoke_agent.sh under ~/agentcore-workshop/multi-agent-research/infrastructure and run
+# Copy 03-multi-agent-coordination/infrastructure/invoke_agent.sh under ~/agentcore-workshop/multi-agent-research/infrastructure and run
+uv add awscurl
 chmod +x ./multi-agent-research/infrastructure/invoke_agent.sh
 ./multi-agent-research/infrastructure/invoke_agent.sh
 
@@ -365,6 +363,7 @@ PS: alternatively you can use python search_specialist.py if you wish but using 
 ```bash
 # Terminal 2: Start the Orchestrator on port 9001 with SEARCH_SPECIALIST_URL set
 cd ~/agentcore-workshop/multi-agent-research/agents/orchestrator
+uv add aws_requests_auth
 agentcore dev --port 9001 --env SEARCH_SPECIALIST_URL=http://localhost:9000
 
 # Expected output:
@@ -504,8 +503,12 @@ Now deploy the Orchestrator with the Search Specialist's a2a URL:
 
 ```bash
 # Lets start deploying locally and talk to search agent in the cloud. this si useful when you are debuging and building your agents. replace the URL with the URL you have received from the previous step
+#
+# IMPORTANT: the URL must end in /invocations — AgentCore serves the A2A agent
+# card at /runtimes/{arn}/invocations/.well-known/agent-card.json. Without the
+# /invocations segment the orchestrator's A2ACardResolver gets a 404.
 
-agentcore dev --port 9000 --env SEARCH_SPECIALIST_URL=https://bedrock-agentcore.ap-southeast-2.amazonaws.com/runtimes/arn%3Aaws%3Abedrock-agentcore%3Aap-southeast-2%3A872970450826%3Aruntime%2Fsearch_specialist-LWtoPKC0Hg/invocations
+agentcore dev --port 9000 --env SEARCH_SPECIALIST_URL=https://bedrock-agentcore.ap-southeast-2.amazonaws.com/runtimes/arn%3Aaws%3Abedrock-agentcore%3Aap-southeast-2%3A786020471868%3Aruntime%2Fsearch_specialist-Z9dJXj7jJ3/invocations
 
 # and invoke on local
 agentcore invoke --dev --port 9000 '{
@@ -526,21 +529,27 @@ agentcore invoke --dev --port 9000 '{
     }
   }' 
 ```
-You can see most of the code is about authentication and client and server initialisation. Once you are happy that the agent is working then lets deploy it and test it again in the agentcore. NOTE: if it does not work then find the permissions of your login credentials that you have used during "aws login".
+You can see most of the code is about authentication and client and server initialisation. Once you are happy that the agent is working then lets deploy it and test it again in the agentcore. NOTE: if it does not work, find the permissions of your login credentials that you have used during "aws login".
 
 ```bash
 # Deploy the Orchestrator with the Search Specialist URL
 # Environment variables must be passed via --env flag (not in YAML file)
 cd ~/agentcore-workshop/multi-agent-research/agents/orchestrator
 
+# WARNING: env vars are NOT persisted in .bedrock_agentcore.yaml. Every
+# `agentcore deploy` must re-pass --env SEARCH_SPECIALIST_URL=... or the
+# deployed runtime loses the variable and the orchestrator logs
+# "SEARCH_SPECIALIST_URL not set - search specialist unavailable".
+
 # Deploy with --env flag
-agentcore deploy --env SEARCH_SPECIALIST_URL=https://bedrock-agentcore.ap-southeast-2.amazonaws.com/runtimes/arn%3Aaws%3Abedrock-agentcore%3Aap-southeast-2%3A872970450826%3Aruntime%2Fsearch_specialist-LWtoPKC0Hg/invocations
+agentcore deploy --env SEARCH_SPECIALIST_URL=https://bedrock-agentcore.ap-southeast-2.amazonaws.com/runtimes/arn%3Aaws%3Abedrock-agentcore%3Aap-southeast-2%3A786020471868%3Aruntime%2Fsearch_specialist-Z9dJXj7jJ3/invocations
 ```
 Once deployemnt is complete go to your AWS account and see taht you have both agetns deployed https://ap-southeast-2.console.aws.amazon.com/bedrock-agentcore/agents?region=ap-southeast-2 make sure they are both active before you run the next command.
 
 
 ```bash
 # lets see if it can answer a simple question without talking to the search agent
+cd ~/agentcore-workshop/multi-agent-research/agents/orchestrator
 agentcore invoke --port 9000 '{
     "jsonrpc": "2.0",
     "method": "message/send",
@@ -585,7 +594,7 @@ agentcore invoke --port 9000 '{
     }
   }' 
 
-# if you get the following message, you is there is a technical issue 
+# You are expected to get the following message with a technical issue 
 
 Response:
 {"id":2,"jsonrpc":"2.0","result":{"artifacts":[{"artifactId":"9abf4213-a943-46c7-8bd2-1dc2e1a5296b","name":"agent_response","parts":[{"kind"
@@ -601,9 +610,10 @@ The Orchestrator needs permission to invoke the Search Specialist via a2a protoc
 
 ```bash
 cd ~/agentcore-workshop/multi-agent-research/agents/orchestrator
-# Get the Orchestrator's execution role ARN
-ORCHESTRATOR_ROLE=$(agentcore status --verbose 2>&1 | grep -oP '"execution_role":\s*"\K[^"]*')
-echo $ORCHESTRATOR_ROLE
+# Get the Orchestrator's execution role ARN from its config.
+# (macOS/BSD grep has no -P/\K; read it from the yaml with portable sed instead.)
+ORCHESTRATOR_ROLE=$(grep -E '^[[:space:]]*execution_role:' .bedrock_agentcore.yaml | grep -v 'null' | head -1 | sed -E 's/.*execution_role:[[:space:]]*//')
+echo "$ORCHESTRATOR_ROLE"
 
 # Grant InvokeAgentRuntime permission
 aws iam put-role-policy \
@@ -623,11 +633,13 @@ If you wish, you can check the values added in the AWS AIM console
 
 This is a very generic permission for orchestator agent to run any bedrock agent. you can limit it by the search agent ARN but this is good for now. Make sure you pay attention that we have given permission to "GetAgentCard" and "InvokeAgentRuntime" to enable agent discovery and invocation; both are needed for A2A protocol to work.
 
-PS: instead of updating orchestrator agent role you can also define resource-based policy for the search_specialist from the AWS console to grant permission to orchestrator agent. youe security governance define the way you want to proceed.
+PS: instead of updating orchestrator agent role you can also define resource-based policy for the search_specialist from the AWS console to grant permission to orchestrator agent. your security governance define the way you want to proceed.
 
 ### 3.5 Retry the A2A communication 
 
 Lets try the last question to Organiser agent now that we have given permission. 
+
+WARNING: you might need to redeploy your orchestrator agent if you still see the error.
 
 ```bash
 cd ~/agentcore-workshop/multi-agent-research/agents/orchestrator

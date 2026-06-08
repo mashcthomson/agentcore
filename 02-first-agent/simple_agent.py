@@ -20,7 +20,12 @@ def handle_query(payload, context):
 
     # Create agent with system prompt
     research_agent = Agent(
-        model="anthropic.claude-3-5-sonnet-20241022-v2:0",
+        # Newer Claude models require a cross-region inference profile, not a raw
+        # model ID. The prefix matches your region AND model generation: in
+        # ap-southeast-2, Claude 4.5+ uses `au.` while older 3.x uses `apac.`
+        # (`us.`/`eu.` in those regions). Verify with:
+        #   aws bedrock list-inference-profiles --region ap-southeast-2
+        model="au.anthropic.claude-haiku-4-5-20251001-v1:0",
         system_prompt="""You are a knowledgeable research assistant specializing in
 AI and multi-agent systems. Provide clear, accurate, and helpful responses
 to questions about these topics."""

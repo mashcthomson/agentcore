@@ -173,16 +173,58 @@ uv 0.x.x
 mkdir -p ~/agentcore-workshop
 cd ~/agentcore-workshop
 
-# Clone or download the workshop materials
-# (If you have the workshop repository)
+# Initialize a uv project — this creates pyproject.toml and a .venv
+uv init --python 3.11
 
-# Install all dependencies (creates .venv automatically)
-uv sync
-
-# Activate virtual environment
-source .venv/bin/activate  # macOS/Linux
-# On Windows: .venv\Scripts\activate
+# Confirm pyproject.toml was created (required before `uv add` works)
+ls pyproject.toml
 ```
+
+> **Important**: `uv add` needs a `pyproject.toml` in the current directory. If you
+> see `error: No pyproject.toml found`, you skipped `uv init` above or you're in the
+> wrong directory — run `uv init --python 3.11` here first, then continue.
+
+### 2.3 Install the AgentCore Starter Toolkit
+
+The starter toolkit provides the `agentcore` CLI plus the runtime SDK used to
+build and deploy agents. Run these from inside `~/agentcore-workshop` (where the
+`pyproject.toml` lives):
+
+```bash
+# Install the starter toolkit (provides the `agentcore` CLI)
+uv add bedrock-agentcore-starter-toolkit
+
+# Install the runtime SDK (BedrockAgentCoreApp, Memory, Browser, etc.)
+uv add bedrock-agentcore
+
+# Install the Strands framework we'll use for the agents
+uv add strands-agents
+```
+
+`uv add` automatically creates and uses the project's `.venv`, so there's no
+separate `uv venv` / activate step needed before installing.
+
+Verify the CLI installed correctly:
+
+```bash
+# Confirm the agentcore CLI is available
+uv run agentcore --help
+```
+
+Expected output:
+```
+Usage: agentcore [OPTIONS] COMMAND [ARGS]...
+
+Commands:
+  configure  Configure AgentCore project
+  deploy     Deploy agent to AgentCore Runtime
+  invoke     Invoke deployed agent
+  ...
+```
+
+> **Tip**: Prefix commands with `uv run` (e.g. `uv run agentcore ...`) to use the
+> project's virtual environment, or activate it once with `source .venv/bin/activate`
+> and call `agentcore` directly.
 
 ## Step 3: Verify Your Setup
 

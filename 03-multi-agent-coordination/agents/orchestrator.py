@@ -63,14 +63,23 @@ class SigV4HttpxAuth(httpx.Auth):
         """Sign the request with SigV4 using aws-requests-auth"""
         # Parse the URL to get the host and region
         parsed_url = urlparse(str(request.url))
+        hostname = parsed_url.hostname or ""
 
-        # Extract region from hostname if it's an AWS endpoint
+        # SigV4 signing only applies to the deployed AgentCore Runtime endpoint
+        # (bedrock-agentcore.{region}.amazonaws.com). Local dev servers
+        # (localhost / 127.0.0.1) need no signing — sending the request unsigned
+        # avoids passing aws_host=None into AWSRequestsAuth, which would raise
+        # "can only concatenate str (not NoneType) to str".
+        if 'amazonaws.com' not in hostname:
+            yield request
+            return
+
+        # Extract region from the AWS endpoint hostname
         # Format: bedrock-agentcore.{region}.amazonaws.com
-        if 'amazonaws.com' in parsed_url.hostname:
-            parts = parsed_url.hostname.split('.')
-            if len(parts) >= 3:
-                self.region = parts[1]  # Extract region
-            self.aws_host = parsed_url.hostname
+        parts = hostname.split('.')
+        if len(parts) >= 3:
+            self.region = parts[1]  # Extract region
+        self.aws_host = hostname
 
         # Create aws-requests-auth object
         aws_auth = AWSRequestsAuth(
@@ -165,6 +174,13 @@ async def search_specialist(query: str) -> str:
     Returns:
         Search results and analysis from the specialist
     """
+    # The one-shot startup init can fail (e.g. IAM permissions not yet
+    # propagated at cold start), leaving _a2a_client None. Retry lazily here so
+    # the agent self-heals once permissions are in place instead of staying
+    # permanently "not configured".
+    if not _a2a_client:
+        logger.info("A2A client not initialized; retrying initialization now")
+        await initialize_a2a_client()
     if not _a2a_client:
         return "Error: Search specialist not configured. Check logs for initialization errors."
 
@@ -202,7 +218,7 @@ async def search_specialist(query: str) -> str:
 orchestrator = Agent(
     name="Research Orchestrator",
     description="An orchestrator agent that routes queries and delegates to specialist agents",
-    model="anthropic.claude-3-5-sonnet-20241022-v2:0",
+    model="au.anthropic.claude-haiku-4-5-20251001-v1:0",
     system_prompt="""You are a research orchestrator. Your role is to:
 
     1. Analyze incoming queries
