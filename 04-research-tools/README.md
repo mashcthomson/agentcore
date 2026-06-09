@@ -81,21 +81,22 @@ agents_and_tools/
 
 **📁 Run these commands from:** `~/agentcore-workshop/agents_and_tools` directory
 
+Copy `agentcore-tutorial/04-research-tools/infrastructure/setup.sh` into the `agents_and_tools` directory.
+
+
+**⚠️ Don't copy-paste the multi-line `create-gateway` command into your terminal.** Long lines pasted from a doc pick up hidden carriage-returns (`\r`) that corrupt the `--role-arn` value, and the gateway fails to create. Run the provided script instead — it resolves your account, creates the execution role if it's missing, and creates the gateway idempotently.
 
 ```bash
 # Navigate to the tutorial directory
 cd ~/agentcore-workshop/agents_and_tools
 
-AWS_ACCOUNT_NUMBER=$(aws sts get-caller-identity --query Account --output text)
+# Run the paste-safe setup script (copy it from the tutorial's infrastructure/ folder).
+# It writes gateway details to gateway_info.json in the current directory.
+chmod +x setup.sh && ./setup.sh
 
-# Step 1: Create the MCP Gateway with IAM authentication
-aws bedrock-agentcore-control create-gateway \
-  --name research-tool-gateway \
-  --role-arn arn:aws:iam::$AWS_ACCOUNT_NUMBER:role/AgentCoreGatewayExecutionRole \
-  --protocol-type MCP \
-  --authorizer-type AWS_IAM \
-  --protocol-configuration '{"mcp": {"searchType": "SEMANTIC"}}' \
-  --region ap-southeast-2 > gateway_info.json  
+# Optional overrides:
+#   GATEWAY_NAME=my-gateway REGION=ap-southeast-2 \
+#   ROLE_NAME=AgentCoreGatewayExecutionRole ./setup.sh
 
 # The gateway will use IAM SigV4 authentication. you can use oauth with cognito or any oauth provider you want to integrate.
 
@@ -222,9 +223,26 @@ awscurl --service bedrock-agentcore \
 
 ## Test the agent on local (which will use the cloud gateway)
 
+This tutorial ships an updated `search_specialist` agent that knows how to discover and call the MCP Gateway. Reuse the existing agent config from Tutorial 03 — just replace its `.py` code with the gateway-aware version and add the new dependency:
+
+```bash
+cd ~/agentcore-workshop/multi-agent-research/agents/search_specialist
+
+# Replace the agent code with the gateway-aware version (keeps the existing
+# .bedrock_agentcore config and pyproject.toml from Tutorial 03)
+cp agentcore-tutorial/04-research-tools/agents/search_specialist.py \
+   ~/agentcore-workshop/multi-agent-research/agents/search_specialist/search_specialist.py
+
+# Add the MCP proxy library the new code imports
+uv add mcp_proxy_for_aws
+```
+
 ```bash
 # Start agent on local
 cd ~/agentcore-workshop/multi-agent-research/agents/search_specialist
+
+# you need to reinit the agent if you have destroyed it earlier 
+agentcore configure --entrypoint search_specialist.py --protocol A2A
 
 # Export environment variables (required for agent to discover gateway)
 export RESEARCH_GATEWAY_URL=$(cat ../../../agents_and_tools/gateway_info.json | jq -r .gatewayUrl)

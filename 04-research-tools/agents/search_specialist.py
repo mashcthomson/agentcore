@@ -95,7 +95,7 @@ else:
 search_agent = Agent(
     name="Search Specialist",
     description="A specialist agent with mock web search and PubMed research capabilities via MCP Gateway",
-    model="anthropic.claude-3-5-sonnet-20241022-v2:0",
+    model="au.anthropic.claude-haiku-4-5-20251001-v1:0",
     system_prompt="""You are a search specialist with access to research tools.
 
     you can do web search or academic paper search to fulfil the request.
